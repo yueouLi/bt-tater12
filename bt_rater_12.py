@@ -1,34 +1,114 @@
-
 import streamlit as st
 import pandas as pd
+import io
 
-df = pd.read_csv("bt_merged.csv", encoding="utf-8-sig")
 
-st.set_page_config(page_title="Backtranslation Rating - Rater 12", layout="centered")
-st.title("📝 Simplification Back-Translation Evaluation - Rater 12")
 
 rater_id = "rater12"
 ratings = []
 
+# 设置页面标题和布局
+st.set_page_config(page_title="Backtranslation Rating - Rater 12", layout="centered")
+st.title("📝 Simplification Back-Translation Evaluation - Rater 12")
+
+    
+with st.expander("📘 View Manual Scoring Guidelines"):
+    st.markdown("""
+### 🎯 **Manual Scoring Protocol (1–5 Scale)**
+
+This study introduces a human evaluation protocol for **multilingual sentence simplification (Chinese/German)**. Ratings are based on:
+
+#### 1️⃣ **Meaning Preservation** (vs. original complex sentence)
+> Does the simplification maintain the original meaning without adding, omitting, or distorting key content?
+
+| Score | Description |
+|---|---|
+| **5** | Fully preserves meaning; no key info lost or altered |
+| **4** | Minor shifts in meaning; core preserved |
+| **3** | Partial meaning loss or distortion |
+| **2** | Major omissions or misunderstandings |
+| **1** | Contradicts or misses original intent |
+
+🛑 _Common issues:_ addition, omission, entity confusion
+
+---
+
+#### 2️⃣ **Fluency** (language quality alone)
+> Is the simplified sentence grammatically correct and natural?
+
+| Score | Description |
+|---|---|
+| **5** | Fluent, native-like |
+| **4** | Minor errors, easy to understand |
+| **3** | Readable with noticeable issues |
+| **2** | Hard to follow due to grammar |
+| **1** | Unintelligible or broken syntax |
+
+🛑 _Common issues:_ punctuation, verb forms, word order
+
+---
+
+#### 3️⃣ **Simplicity** (vs. original sentence)
+> Has complexity been reduced structurally or lexically?
+
+| Score | Description |
+|---|---|
+| **5** | Clearly easier to read, much simpler |
+| **4** | Noticeably simpler |
+| **3** | Slight improvement or same |
+| **2** | Minimal simplification |
+| **1** | Still complex or even harder |
+
+💡 _Don’t confuse info loss (penalized under Meaning) with valid simplification._
+
+---
+
+#### 4️⃣ **Diversity** (vs. other references)
+> Is the expression/style clearly different from other simplifications?
+
+| Score | Description |
+|---|---|
+| **5** | Creative or unique structure/style |
+| **4** | Distinct phrasing or tone |
+| **3** | Some variation |
+| **2** | Very similar wording |
+| **1** | Nearly identical |
+
+🔎 _Diversity ≠ quality. Use only when multiple references exist._
+    """)
+
+
+
+# 读取 CSV 文件
+df = pd.read_csv("bt_merged.csv", encoding="utf-8-sig")
+df.columns = [col.strip() for col in df.columns]  # 去除列名首尾空格
+
+# 初始化 session_state 中的评分数据字典（必须保留）
+if "ratings_data" not in st.session_state:
+    st.session_state.ratings_data = {}
+
+
+# 展示样本
 for idx, row in df.iterrows():
-    st.markdown(f"### 🔢 Sample {idx+1}")
+    row = df.iloc[idx]
+    st.markdown(f"### 🔢 Sample {idx + 1}")
     st.markdown(f"**🟩 Source:**  \n{row['source']}")
-    st.markdown(f"**🇩🇪 German Back-Translation:**  \n{row['bt_de']}")
-    st.markdown(f"**🇨🇳 Chinese Back-Translation:**  \n{row['bt_zh']}")
+    st.markdown(f"**🦁Sprache 1 Back-Translation:**  \n{row['bt_de']}")
+   
 
-    st.markdown("**Rate German Version:**")
-    g_meaning = st.slider(f"Meaning (German) [{idx}]", 1, 5, 3, key=f"gm{idx}")
-    g_fluency = st.slider(f"Fluency (German) [{idx}]", 1, 5, 3, key=f"gf{idx}")
-    g_simplicity = st.slider(f"Simplicity (German) [{idx}]", 1, 5, 3, key=f"gs{idx}")
-    g_diversity = st.slider(f"Diversity (German) [{idx}]", 1, 5, 3, key=f"gd{idx}")
+    g_meaning = st.slider(f"Meaning (🦁) [{idx}]", 1, 5, 3, key=f"gm{idx}")
+    g_fluency = st.slider(f"Fluency (🦁) [{idx}]", 1, 5, 3, key=f"gf{idx}")
+    g_simplicity = st.slider(f"Simplicity (🦁) [{idx}]", 1, 5, 3, key=f"gs{idx}")
+    g_diversity = st.slider(f"Diversity (🦁) [{idx}]", 1, 5, 3, key=f"gd{idx}")
+    
+    st.markdown(f"**🟩 Source:**  \n{row['source']}")
+    st.markdown(f"**🐮Sprache 2 Back-Translation:**  \n{row['bt_zh']}")
+    c_meaning = st.slider(f"Meaning (🐮) [{idx}]", 1, 5, 3, key=f"cm{idx}")
+    c_fluency = st.slider(f"Fluency (🐮) [{idx}]", 1, 5, 3, key=f"cf{idx}")
+    c_simplicity = st.slider(f"Simplicity (🐮) [{idx}]", 1, 5, 3, key=f"cs{idx}")
+    c_diversity = st.slider(f"Diversity (🐮) [{idx}]", 1, 5, 3, key=f"cd{idx}")
 
-    st.markdown("**Rate Chinese Version:**")
-    c_meaning = st.slider(f"Meaning (Chinese) [{idx}]", 1, 5, 3, key=f"cm{idx}")
-    c_fluency = st.slider(f"Fluency (Chinese) [{idx}]", 1, 5, 3, key=f"cf{idx}")
-    c_simplicity = st.slider(f"Simplicity (Chinese) [{idx}]", 1, 5, 3, key=f"cs{idx}")
-    c_diversity = st.slider(f"Diversity (Chinese) [{idx}]", 1, 5, 3, key=f"cd{idx}")
-
-    ratings.append({
+    st.session_state.ratings_data[idx] = {
         "rater_id": rater_id,
         "sample_id": idx + 1,
         "source": row["source"],
@@ -42,9 +122,30 @@ for idx, row in df.iterrows():
         "c_fluency": c_fluency,
         "c_simplicity": c_simplicity,
         "c_diversity": c_diversity,
-    })
+    }
 
+# 显示进度
 st.markdown("---")
-if st.button("💾 Export Ratings to CSV"):
-    pd.DataFrame(ratings).to_csv(f"bt_ratings_rater12.csv", index=False, encoding="utf-8-sig")
-    st.success("✅ Ratings saved successfully.")
+st.markdown(f"📊 Progress: {len(st.session_state.ratings_data)} / {len(df)} samples rated.")
+
+# 翻页控制
+col1, col2, col3 = st.columns([1, 1, 1])
+with col1:
+    if st.button("⬅️ Previous") and st.session_state.page > 0:
+        st.session_state.page -= 1
+with col2:
+    if st.button("➡️ Next") and end_idx < len(df):
+        st.session_state.page += 1
+with col3:
+    if st.button("⬇️ Download CSV"):
+        all_ratings_df = pd.DataFrame.from_dict(st.session_state.ratings_data, orient="index")
+        csv_bytes = all_ratings_df.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
+        st.download_button(
+            label="📥 Click here to download",
+            data=csv_bytes,
+            file_name=f"bt_ratings_{rater_id}.csv",
+            mime="text/csv"
+        )
+
+
+
